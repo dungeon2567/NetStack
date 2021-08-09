@@ -43,6 +43,7 @@ using System;
 using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using System.Text;
+using System.Buffers;
 
 #if ENABLE_MONO || ENABLE_IL2CPP
 	using UnityEngine.Assertions;
@@ -485,6 +486,57 @@ namespace NetStack.Serialization {
 			}
 
 			return builder.ToString();
+		}
+		
+		[MethodImpl(256)]
+		public BitBuffer AddStringUnicode(string value)
+		{
+			if(value == null)
+                	{
+				AddUInt(0);
+
+				return this;
+                	}
+
+			int length = value.Length;
+
+			if (length > stringLengthMax)
+			{
+				throw new ArgumentOutOfRangeException("value length exceeded");
+			}
+
+			AddUInt((uint)length);
+
+			for(int it = 0; it < length; ++it)
+               	 	{
+				AddUInt((uint)(value[it]));
+                	}
+
+			return this;
+		}
+
+		[MethodImpl(256)]
+		public string ReadStringUnicode()
+		{
+			int length = (int)ReadUInt();
+
+			if (length > stringLengthMax)
+			{
+				throw new ArgumentOutOfRangeException("value length exceeded");
+			}
+
+			char[] chars = ArrayPool<char>.Shared.Rent(length);
+
+			for (int i = 0; i < length; i++)
+			{
+				chars[i] = (char)ReadUInt();
+			}
+
+			string result = new string(chars, 0, length);
+
+			ArrayPool<char>.Shared.Return(chars, false);
+
+			return result;
 		}
 
 		public override string ToString() {
